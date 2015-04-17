@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:quartz="http://www.mulesoft.org/schema/mule/quartz" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.6.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/quartz http://www.mulesoft.org/schema/mule/quartz/current/mule-quartz.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="${http.host}" port="8081" doc:name="HTTP Listener Configuration"/>
+    <http:request-config name="HTTP_Request_Configuration" host="54.144.131.45" port="8084" doc:name="HTTP Request Configuration"/>
+    <vm:endpoint exchange-pattern="one-way" path="run-api-request" name="VM" doc:name="VM">
+        <vm:transaction action="ALWAYS_BEGIN"/>
+    </vm:endpoint>
+    <flow name="dynamic-cronFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/" doc:name="HTTP"/>
+        <set-session-variable variableName="cronSchedule" value="0 0/1 * 1/1 * ? *" doc:name="Session Variable"/>
+        <quartz:outbound-endpoint jobName="Ping Server" cronExpression="${cron.expression}" repeatInterval="0" responseTimeout="10000" doc:name="Quartz">
+            <quartz:scheduled-dispatch-job>
+                <quartz:job-endpoint ref="VM"/>
+            </quartz:scheduled-dispatch-job>
+        </quartz:outbound-endpoint>
+        <logger message="#[sessionVars.cronSchedule]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="dynamic-cronFlow3">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="run-api-request" doc:name="VM">
+            <vm:transaction action="ALWAYS_BEGIN"/>
+        </vm:inbound-endpoint>
+        <http:request config-ref="HTTP_Request_Configuration" path="server" method="GET" doc:name="HTTP"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <logger message="#[payload] #[sessionVars.cronSchedule]" level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>
